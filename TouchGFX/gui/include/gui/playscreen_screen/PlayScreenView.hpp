@@ -4,6 +4,7 @@
 #include <gui_generated/playscreen_screen/PlayScreenViewBase.hpp>
 #include <gui/playscreen_screen/PlayScreenPresenter.hpp>
 #include <touchgfx/widgets/Image.hpp>
+#include <touchgfx/widgets/AnimatedImage.hpp>
 
 enum EnemyType
 {
@@ -59,6 +60,15 @@ protected:
 	void updateBullets();
 	void spawnBullet();
 
+	touchgfx::AnimatedImage explosions[ROWS][COLS];
+
+	// Callback khi animation chạy xong (để ẩn đi)
+	touchgfx::Callback<PlayScreenView, const touchgfx::AnimatedImage&> explosionEndedCallback;
+
+	// [NEW] Hàm kiểm tra va chạm
+	void checkCollisions();
+	// [NEW] Hàm xử lý khi animation kết thúc
+	void explosionEndedHandler(const touchgfx::AnimatedImage &source);
 };
 
 #endif // PLAYSCREENVIEW_HPP

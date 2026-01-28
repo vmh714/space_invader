@@ -465,6 +465,16 @@
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/images/src/image_blue_32.cpp</locationURI>
 		</link>
 		<link>
+			<name>Application/User/generated/image_explosion_01.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/images/src/image_explosion_01.cpp</locationURI>
+		</link>
+		<link>
+			<name>Application/User/generated/image_explosion_02.cpp</name>
+			<type>1</type>
+			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/images/src/image_explosion_02.cpp</locationURI>
+		</link>
+		<link>
 			<name>Application/User/generated/image_green_32.cpp</name>
 			<type>1</type>
 			<locationURI>PARENT-1-PROJECT_LOC/TouchGFX/generated/images/src/image_green_32.cpp</locationURI>
