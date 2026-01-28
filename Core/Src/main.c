@@ -25,6 +25,8 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "Components/ili9341/ili9341.h"
+#include <stdio.h>
+#include <string.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -54,6 +56,24 @@
 
 #define I2C3_TIMEOUT_MAX                    0x3000 /*<! The value of the maximal timeout for I2C waiting loops */
 #define SPI5_TIMEOUT_MAX                    0x1000
+// --- UP Button (GPIO C, Pin 12) ---
+#define UP_PORT     GPIOC
+#define UP_PIN      GPIO_PIN_12
+
+// --- DOWN Button (GPIO C, Pin 10) ---
+#define DOWN_PORT   GPIOC
+#define DOWN_PIN    GPIO_PIN_10
+
+// --- LEFT Button (GPIO A, Pin 15) ---
+// ("còn lại là a" -> Left là A)
+#define LEFT_PORT   GPIOA
+#define LEFT_PIN    GPIO_PIN_15
+
+// --- RIGHT Button (GPIO C, Pin 11) ---
+#define RIGHT_PORT  GPIOC
+#define RIGHT_PIN   GPIO_PIN_11
+
+#define DEBOUNCE_DELAY 200
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -72,6 +92,8 @@ LTDC_HandleTypeDef hltdc;
 
 SPI_HandleTypeDef hspi5;
 
+UART_HandleTypeDef huart1;
+
 SDRAM_HandleTypeDef hsdram1;
 
 /* Definitions for defaultTask */
@@ -88,8 +110,21 @@ const osThreadAttr_t GUI_Task_attributes = {
   .stack_size = 8192 * 4,
   .priority = (osPriority_t) osPriorityNormal,
 };
+/* Definitions for ButtonTask */
+osThreadId_t ButtonTaskHandle;
+const osThreadAttr_t ButtonTask_attributes = {
+  .name = "ButtonTask",
+  .stack_size = 256 * 4,
+  .priority = (osPriority_t) osPriorityNormal,
+};
+/* Definitions for buttonQueue */
+osMessageQueueId_t buttonQueueHandle;
+const osMessageQueueAttr_t buttonQueue_attributes = {
+  .name = "buttonQueue"
+};
 /* USER CODE BEGIN PV */
 uint8_t isRevD = 0; /* Applicable only for STM32F429I DISCOVERY REVD and above */
+static volatile uint32_t last_interrupt_time = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -101,8 +136,10 @@ static void MX_SPI5_Init(void);
 static void MX_FMC_Init(void);
 static void MX_LTDC_Init(void);
 static void MX_DMA2D_Init(void);
+static void MX_USART1_UART_Init(void);
 void StartDefaultTask(void *argument);
 extern void TouchGFX_Task(void *argument);
+void StartButtonTask(void *argument);
 
 /* USER CODE BEGIN PFP */
 static void BSP_SDRAM_Initialization_Sequence(SDRAM_HandleTypeDef *hsdram, FMC_SDRAM_CommandTypeDef *Command);
@@ -132,7 +169,19 @@ void                      IOE_Delay(uint32_t Delay);
 void                      IOE_Write(uint8_t Addr, uint8_t Reg, uint8_t Value);
 uint8_t                   IOE_Read(uint8_t Addr, uint8_t Reg);
 uint16_t                  IOE_ReadMultiple(uint8_t Addr, uint8_t Reg, uint8_t *pBuffer, uint16_t Length);
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  uint32_t current_time = osKernelGetTickCount();
 
+  if ((current_time - last_interrupt_time) > DEBOUNCE_DELAY)
+  {
+    last_interrupt_time = current_time;
+
+
+    uint32_t pin_to_send = (uint32_t)GPIO_Pin;
+    osMessageQueuePut(buttonQueueHandle, &pin_to_send, 0U, 0U);
+  }
+}
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -178,6 +227,7 @@ int main(void)
   MX_FMC_Init();
   MX_LTDC_Init();
   MX_DMA2D_Init();
+  MX_USART1_UART_Init();
   MX_TouchGFX_Init();
   /* Call PreOsInit function */
   MX_TouchGFX_PreOSInit();
@@ -200,6 +250,10 @@ int main(void)
   /* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
 
+  /* Create the queue(s) */
+  /* creation of buttonQueue */
+  buttonQueueHandle = osMessageQueueNew (16, sizeof(uint16_t), &buttonQueue_attributes);
+
   /* USER CODE BEGIN RTOS_QUEUES */
   /* add queues, ... */
   /* USER CODE END RTOS_QUEUES */
@@ -210,6 +264,9 @@ int main(void)
 
   /* creation of GUI_Task */
   GUI_TaskHandle = osThreadNew(TouchGFX_Task, NULL, &GUI_Task_attributes);
+
+  /* creation of ButtonTask */
+  ButtonTaskHandle = osThreadNew(StartButtonTask, NULL, &ButtonTask_attributes);
 
   /* USER CODE BEGIN RTOS_THREADS */
   /* add threads, ... */
@@ -515,6 +572,39 @@ static void MX_SPI5_Init(void)
 
 }
 
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
+
+}
+
 /* FMC initialization function */
 static void MX_FMC_Init(void)
 {
@@ -626,6 +716,22 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PA15 */
+  GPIO_InitStruct.Pin = GPIO_PIN_15;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PC10 PC11 PC12 */
+  GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_11|GPIO_PIN_12;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI15_10_IRQn, 6, 0);
+  HAL_NVIC_EnableIRQ(EXTI15_10_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
   /* USER CODE END MX_GPIO_Init_2 */
@@ -973,6 +1079,56 @@ void StartDefaultTask(void *argument)
     osDelay(100);
   }
   /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_StartButtonTask */
+/**
+* @brief Function implementing the ButtonTask thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartButtonTask */
+void StartButtonTask(void *argument)
+{
+  /* USER CODE BEGIN StartButtonTask */
+	uint32_t received_pin;
+		osStatus_t status;
+		char msg[64]; // Tăng kích thước buffer lên một chút cho an toàn
+
+		for (;;)
+		{
+			status = osMessageQueueGet(buttonQueueHandle, &received_pin, NULL, osWaitForever);
+
+			if (status == osOK)
+			{
+				uint16_t clean_pin = received_pin & 0xFFFF;
+				switch (clean_pin)
+				{
+				case UP_PIN:
+					// In kèm giá trị Hex để debug
+					sprintf(msg, "Button UP Pressed (0x%04X)\r\n", clean_pin);
+					break;
+				case DOWN_PIN:
+					sprintf(msg, "Button DOWN Pressed (0x%04X)\r\n", clean_pin);
+					break;
+				case LEFT_PIN:
+					sprintf(msg, "Button LEFT Pressed (0x%04X)\r\n", clean_pin);
+					break;
+				case RIGHT_PIN:
+					sprintf(msg, "Button RIGHT Pressed (0x%04X)\r\n", clean_pin);
+					break;
+				default:
+					// QUAN TRỌNG: In ra giá trị lạ (ví dụ 0x8800) ở đây
+					// %04lX nghĩa là: in số Hex, viết hoa, ít nhất 4 ký tự, điền số 0 ở đầu
+					sprintf(msg, "Unknown/Combined Button: 0x%04X\r\n", clean_pin);
+					break;
+				}
+
+				// Gửi ra UART
+				HAL_UART_Transmit(&huart1, (uint8_t*) msg, strlen(msg), 100);
+			}
+		}
+  /* USER CODE END StartButtonTask */
 }
 
 /**
