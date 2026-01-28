@@ -25,6 +25,8 @@ public:
      */
     virtual void deactivate();
 
+    virtual void movePlayer(char direction);
+
     virtual ~PlayScreenPresenter() {}
 
 private:

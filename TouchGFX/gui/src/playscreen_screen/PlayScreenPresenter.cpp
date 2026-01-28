@@ -16,3 +16,7 @@ void PlayScreenPresenter::deactivate()
 {
 
 }
+void PlayScreenPresenter::movePlayer(char direction)
+{
+    view.movePlayer(direction);
+}
