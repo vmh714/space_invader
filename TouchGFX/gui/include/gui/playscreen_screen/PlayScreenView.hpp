@@ -36,7 +36,7 @@ public:
 	virtual void killEnemy(uint8_t r, uint8_t c);
 	virtual void movePlayer(char direction);
 
-	//virtual void handleTickEvent();
+	virtual void handleTickEvent();
 protected:
 	const uint16_t SCREEN_WIDTH = 240;
 	const uint16_t SCREEN_HEIGHT = 320;
@@ -44,7 +44,7 @@ protected:
 	static const uint8_t COLS = 4;
 	Enemy enemies[ROWS][COLS];
 	touchgfx::Image enemyImages[ROWS][COLS];
-	/*
+
 	static const uint8_t MAX_BULLETS = 2; // Số đạn tối đa đồng thời
 	static const uint8_t BULLET_WIDTH = 6;
 	static const uint8_t BULLET_HEIGHT = 12;
@@ -58,7 +58,7 @@ protected:
 	// Hàm trợ giúp
 	void updateBullets();
 	void spawnBullet();
-	*/
+
 };
 
 #endif // PLAYSCREENVIEW_HPP

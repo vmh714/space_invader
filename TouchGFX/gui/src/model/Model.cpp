@@ -1,7 +1,7 @@
 #include <gui/model/Model.hpp>
 #include <gui/model/ModelListener.hpp>
 
-#ifndef SIMULATION
+#ifndef SIMULATOR
 #include <cmsis_os2.h>
 extern osMessageQueueId_t controlQueueHandle;
 #endif
@@ -12,7 +12,7 @@ Model::Model() : modelListener(0)
 }
 void Model::tick()
 {
-#ifndef SIMULATION
+#ifndef SIMULATOR
 	if (controlQueueHandle != NULL)
 	{
 		char cmd = 0;
