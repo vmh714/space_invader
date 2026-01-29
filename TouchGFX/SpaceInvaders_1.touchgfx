@@ -77,14 +77,187 @@
           {
             "Type": "Image",
             "Name": "player",
-            "X": 100,
+            "X": 104,
             "Y": 255,
-            "Width": 40,
-            "Height": 40,
+            "Width": 32,
+            "Height": 32,
             "RelativeFilename": "player.png"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "scoreText",
+            "X": 6,
+            "Y": 181,
+            "Width": 55,
+            "Height": 21,
+            "TextId": "__SingleUse_EUOT",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 199,
+              "Green": 170,
+              "Blue": 44
+            },
+            "AutoSize": true,
+            "Wildcard1": {
+              "TextId": "__SingleUse_NY11",
+              "UseBuffer": true,
+              "BufferSize": 6
+            }
           }
         ],
-        "Interactions": []
+        "Interactions": [
+          {
+            "InteractionName": "gotoGameOverScreen",
+            "HasCompletedTrigger": true,
+            "Trigger": {
+              "Type": "TriggerWhen",
+              "ActionCustomTypeName": "Call PlayScreen changeToGameOver"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "GameOverScreen"
+            }
+          }
+        ],
+        "CustomActions": [
+          {
+            "Name": "changeToGameOver"
+          }
+        ]
+      },
+      {
+        "Name": "GameOverScreen",
+        "Components": [
+          {
+            "Type": "FlexButton",
+            "Name": "cancelButton",
+            "X": 31,
+            "Y": 160,
+            "Width": 78,
+            "Height": 42,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 78,
+                "Height": 42,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Green": 102,
+                  "Blue": 153
+                },
+                "ColorPressed": {
+                  "Green": 153,
+                  "Blue": 204
+                },
+                "ColorBorderReleased": {
+                  "Green": 51,
+                  "Blue": 102
+                },
+                "ColorBorderPressed": {
+                  "Red": 51,
+                  "Green": 102,
+                  "Blue": 153
+                }
+              }
+            ]
+          },
+          {
+            "Type": "FlexButton",
+            "Name": "retryButton",
+            "X": 131,
+            "Y": 156,
+            "Width": 78,
+            "Height": 46,
+            "ButtonTrigger": {
+              "Type": "ClickButtonTrigger"
+            },
+            "ButtonStyles": [
+              {
+                "Type": "BoxWithBorderButtonStyle",
+                "Width": 78,
+                "Height": 46,
+                "LockToFlexButtonSize": true,
+                "BorderSize": 5,
+                "ColorReleased": {
+                  "Green": 102,
+                  "Blue": 153
+                },
+                "ColorPressed": {
+                  "Green": 153,
+                  "Blue": 204
+                },
+                "ColorBorderReleased": {
+                  "Green": 51,
+                  "Blue": 102
+                },
+                "ColorBorderPressed": {
+                  "Red": 51,
+                  "Green": 102,
+                  "Blue": 153
+                }
+              }
+            ]
+          },
+          {
+            "Type": "Image",
+            "Name": "gameOverScreenBase",
+            "Width": 240,
+            "Height": 320,
+            "RelativeFilename": "game_over_screen_base.png"
+          },
+          {
+            "Type": "TextArea",
+            "Name": "scoreText",
+            "X": 93,
+            "Y": 124,
+            "Width": 55,
+            "Height": 21,
+            "TextId": "__SingleUse_J1D0",
+            "TextRotation": "0",
+            "Color": {
+              "Red": 199,
+              "Green": 170,
+              "Blue": 44
+            },
+            "AutoSize": true,
+            "Wildcard1": {
+              "TextId": "__SingleUse_UORE",
+              "UseBuffer": true,
+              "BufferSize": 6
+            }
+          }
+        ],
+        "Interactions": [
+          {
+            "InteractionName": "retryInteraction",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "retryButton"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "PlayScreen"
+            }
+          },
+          {
+            "InteractionName": "cancelInteractionc",
+            "Trigger": {
+              "Type": "TriggerClicked",
+              "TriggerComponent": "cancelButton"
+            },
+            "Action": {
+              "Type": "ActionGotoScreen",
+              "ScreenTransitionType": "ScreenTransitionNone",
+              "ActionComponent": "HomeScreen"
+            }
+          }
+        ]
       }
     ],
     "CustomContainerDefinitions": [],

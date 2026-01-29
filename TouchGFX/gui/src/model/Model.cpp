@@ -6,19 +6,26 @@
 extern osMessageQueueId_t controlQueueHandle;
 #endif
 
-Model::Model() : modelListener(0)
+Model::Model() :
+		modelListener(0),savedScore(0)
 {
 
 }
 void Model::tick()
 {
 #ifndef SIMULATOR
-	if (controlQueueHandle != NULL)
+	if (controlQueueHandle != NULL
+			&& osMessageQueueGetCount(controlQueueHandle) > 0)
 	{
-		char cmd = 0;
-		if (osMessageQueueGet(controlQueueHandle, &cmd, NULL, 0) == osOK)
+		uint16_t received_cmd;
+		if (osMessageQueueGet(controlQueueHandle, &received_cmd, NULL, 0)
+				== osOK)
 		{
-			modelListener->movePlayer(cmd);
+			// Chỉ gửi lệnh đi nếu Listener (Presenter) vẫn còn tồn tại
+			if (modelListener != nullptr)
+			{
+				modelListener->movePlayer((char) received_cmd);
+			}
 		}
 	}
 #endif
