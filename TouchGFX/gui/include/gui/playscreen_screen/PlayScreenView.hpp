@@ -10,7 +10,10 @@ enum EnemyType
 {
 	ENEMY_BLUE, ENEMY_GREEN
 };
-
+enum EnemyMoveDirection
+{
+	MOVE_IDLE, MOVE_DOWN, MOVE_LEFT, MOVE_UP, MOVE_RIGHT
+};
 struct Enemy
 {
 	int16_t x;
@@ -58,6 +61,12 @@ protected:
 	static const uint16_t PLAYER_START_Y = 255;   // Tọa độ Y gốc
 	static const uint16_t PLAYER_STEP = 10;       // Tốc độ di chuyển
 
+	static const uint16_t imgSize = 32;
+	static const uint16_t spacingX = 20;
+	static const uint16_t spacingY = 0;
+	static const uint16_t startX = 20;
+	static const uint16_t startY = 20;
+
 	// --- BULLET OFFSET (Tọa độ tương đối của đạn so với Player) ---
 	// Center X: (32/2) - (6/2) = 13. Y: -12 (bay lên từ đầu player)
 	static const int16_t PLAYER_BULLET_OFFSET_X = 13;
@@ -70,9 +79,17 @@ protected:
 
 	static const uint8_t MAX_ENEMY_BULLETS = 5; // Số đạn quái tối đa trên màn hình
 	static const uint8_t ENEMY_BULLET_SIZE = 8;
-	static const uint16_t ENEMY_FIRE_RATE = 100;
-
+	uint16_t currentEnemyFireRate;
 	static const uint8_t SCORE_PER_ENEMY = 1;
+	uint8_t currentLevel;
+
+	EnemyMoveDirection moveDir;
+	uint16_t moveTimer; // Timer để làm chậm tốc độ di chuyển (không move mỗi tick)
+	uint16_t moveStepCounter; // Đếm đã đi được bao nhiêu bước trong hướng hiện tại
+
+	static const uint8_t MOVE_SPEED_DELAY = 3; // Cứ 3 ticks thì di chuyển 1 lần (tốc độ)
+	static const uint8_t MOVE_PIXELS = 2;      // Mỗi lần di chuyển 2 pixel
+	static const uint16_t MOVE_RANGE = 40;
 
 	uint8_t lastShotColumn;
 	Enemy enemies[ROWS][COLS];
@@ -106,6 +123,8 @@ protected:
 	void checkAllEnemiesDead();
 	void respawnEnemies();
 	void updateScoreDisplay();
+	void updateEnemyMovement();
+	bool canMove(int16_t dx, int16_t dy);
 };
 
 #endif // PLAYSCREENVIEW_HPP

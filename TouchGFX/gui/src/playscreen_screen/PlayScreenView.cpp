@@ -8,32 +8,29 @@
 
 PlayScreenView::PlayScreenView() :
 		lastShotColumn(0), fireTimer(0), // Khởi tạo timer
-		explosionEndedCallback(this, &PlayScreenView::explosionEndedHandler), currentScore(
+		explosionEndedCallback(this, &PlayScreenView::explosionEndedHandler), currentEnemyFireRate(
+				100), // Tốc độ bắn mặc định
+		currentScore(0), currentLevel(1), moveDir(MOVE_IDLE), moveTimer(0), moveStepCounter(
 				0)
 
 {
+	currentLevel = 1;
+	currentEnemyFireRate = 100;
+	moveDir = MOVE_IDLE;
+	moveTimer = 0;
+	moveStepCounter = 0;
 	// Khởi tạo trạng thái đạn
 	for (uint8_t i = 0; i < MAX_BULLETS; ++i)
 	{
 		bulletStates[i].isActive = false;
-		// Không cần khởi tạo x,y bây giờ vì khi bắn sẽ set lại
 	}
 }
-//PlayScreenView::PlayScreenView()
-//{
-//
-//}
 
 void PlayScreenView::setupScreen()
 {
 	PlayScreenViewBase::setupScreen();
 
-	const uint16_t imgSize = 32;
-	const uint16_t spacingX = 20;
-	const uint16_t spacingY = 0;
 
-	const uint16_t startX = 20;
-	const uint16_t startY = 20;
 
 	for (uint8_t r = 0; r < ROWS; r++)
 	{
@@ -145,39 +142,34 @@ void PlayScreenView::movePlayer(char direction)
 	player.moveTo(newX, newY);
 }
 
-// --- CÁC HÀM MỚI CHO VIỆC BẮN ĐẠN ---
-
 void PlayScreenView::handleTickEvent()
 {
 	// Hàm này được gọi mỗi khung hình (ví dụ 60 lần/giây)
-	//Logic đạn người chơi
-	//Tăng bộ đếm thời gian bắn
-	fireTimer++;
 
-	//Kiểm tra điều kiện để bắn viên đạn mới (Auto fire)
+	// 1. Logic đạn người chơi
+	fireTimer++;
 	if (fireTimer >= FIRE_DELAY_TICKS)
 	{
 		spawnBullet();
-		fireTimer = 0; // Reset timer sau khi thử bắn
+		fireTimer = 0;
 	}
 
-	// Cập nhật vị trí các viên đạn đang bay
 	updateBullets();
-
 	checkCollisions();
 
-	// Logic đạn quái
+	updateEnemyMovement();
+
 	enemyFireTimer++;
-	if (enemyFireTimer >= ENEMY_FIRE_RATE)
+	if (enemyFireTimer >= currentEnemyFireRate)
 	{
 		enemyShoot();
 		enemyFireTimer = 0;
 	}
 
 	updateEnemyBullets();
+
 	checkPlayerHit();
 	checkAllEnemiesDead();
-	//updateScoreDisplay();
 }
 
 void PlayScreenView::spawnBullet()
@@ -446,19 +438,39 @@ void PlayScreenView::checkAllEnemiesDead()
 
 void PlayScreenView::respawnEnemies()
 {
-	// Reset lại trạng thái ban đầu cho từng con quái
+	// 1. Tăng Level
+	currentLevel++;
+
+	// 2. Thiết lập độ khó theo Level
+	if (currentLevel == 2)
+	{
+		// Level 2: Bắt đầu di chuyển
+		moveDir = MOVE_DOWN; // Bắt đầu chu trình: Xuống -> Trái -> Lên -> Phải
+		moveStepCounter = 0;
+	}
+	else if (currentLevel >= 3)
+	{
+		// Level 3: Di chuyển + Bắn nhanh hơn
+		// Reset lại chu trình di chuyển nếu muốn đồng bộ
+		moveDir = MOVE_DOWN;
+		moveStepCounter = 0;
+
+		// Tăng tốc độ bắn (số tick giảm đi = bắn nhanh hơn)
+		// Giới hạn không cho bắn quá nhanh (ví dụ min là 30)
+		if (currentEnemyFireRate > 40)
+		{
+			currentEnemyFireRate -= 20;
+		}
+	}
+
+	// 3. Hồi sinh quái (Code cũ)
 	for (uint8_t r = 0; r < ROWS; r++)
 	{
 		for (uint8_t c = 0; c < COLS; c++)
 		{
 			enemies[r][c].alive = true;
-
-			// Hiển thị lại hình ảnh
 			enemyImages[r][c].setVisible(true);
 			enemyImages[r][c].invalidate();
-
-			// (Tùy chọn) Nếu bạn muốn tăng độ khó mỗi lần hồi sinh,
-			// có thể giảm ENEMY_FIRE_RATE ở đây.
 		}
 	}
 }
@@ -468,4 +480,135 @@ void PlayScreenView::updateScoreDisplay()
 	Unicode::snprintf(scoreTextBuffer, SCORETEXT_SIZE, "%d", currentScore);
 
 	scoreText.invalidate();
+}
+void PlayScreenView::updateEnemyMovement()
+{
+	// Kiểm tra Level và trạng thái IDLE
+	if (currentLevel < 2 || moveDir == MOVE_IDLE)
+		return;
+
+	// Timer tốc độ di chuyển
+	moveTimer++;
+	if (moveTimer < MOVE_SPEED_DELAY)
+		return;
+	moveTimer = 0;
+
+	int16_t dx = 0;
+	int16_t dy = 0;
+
+	// 1. Xác định hướng dự kiến
+	switch (moveDir)
+	{
+	case MOVE_DOWN:
+		dy = MOVE_PIXELS;
+		break;
+	case MOVE_LEFT:
+		dx = -MOVE_PIXELS;
+		break;
+	case MOVE_UP:
+		dy = -MOVE_PIXELS;
+		break;
+	case MOVE_RIGHT:
+		dx = MOVE_PIXELS;
+		break;
+	default:
+		break;
+	}
+
+	// 2. Kiểm tra va chạm
+	if (canMove(dx, dy))
+	{
+		// === TRƯỜNG HỢP A: ĐƯỜNG THOÁNG, CỨ ĐI ===
+
+		// Cập nhật vị trí thật
+		for (uint8_t r = 0; r < ROWS; r++)
+		{
+			for (uint8_t c = 0; c < COLS; c++)
+			{
+				enemies[r][c].x += dx;
+				enemies[r][c].y += dy;
+				if (enemies[r][c].alive)
+				{
+					enemyImages[r][c].moveTo(enemies[r][c].x, enemies[r][c].y);
+				}
+			}
+		}
+
+		// Tăng biến đếm quãng đường
+		moveStepCounter += MOVE_PIXELS;
+
+		// Nếu đi đủ quãng đường quy định (MOVE_RANGE) thì đổi hướng
+		if (moveStepCounter >= MOVE_RANGE)
+		{
+			moveStepCounter = 0;
+			// Chuyển hướng theo chiều kim đồng hồ
+			switch (moveDir)
+			{
+			case MOVE_DOWN:
+				moveDir = MOVE_LEFT;
+				break;
+			case MOVE_LEFT:
+				moveDir = MOVE_UP;
+				break;
+			case MOVE_UP:
+				moveDir = MOVE_RIGHT;
+				break;
+			case MOVE_RIGHT:
+				moveDir = MOVE_DOWN;
+				break;
+			default:
+				break;
+			}
+		}
+	}
+	else
+	{
+		// === TRƯỜNG HỢP B: ĐỤNG TƯỜNG -> ĐỔI HƯỚNG NGAY ===
+		// (Đây chính là logic bạn muốn: bắt đầu vòng đời mới ngay)
+
+		moveStepCounter = 0; // Reset quãng đường về 0 để hướng mới đi đủ range
+
+		// Ép buộc chuyển hướng ngay lập tức
+		switch (moveDir)
+		{
+		case MOVE_DOWN:
+			moveDir = MOVE_LEFT;
+			break;
+		case MOVE_LEFT:
+			// Đang sang Trái mà đụng tường -> Đi Lên ngay
+			moveDir = MOVE_UP;
+			break;
+		case MOVE_UP:
+			moveDir = MOVE_RIGHT;
+			break;
+		case MOVE_RIGHT:
+			// Đang sang Phải mà đụng tường -> Đi Xuống ngay
+			moveDir = MOVE_DOWN;
+			break;
+		default:
+			break;
+		}
+	}
+}
+bool PlayScreenView::canMove(int16_t dx, int16_t dy)
+{
+	for (uint8_t r = 0; r < ROWS; r++)
+	{
+		for (uint8_t c = 0; c < COLS; c++)
+		{
+			if (enemies[r][c].alive)
+			{
+				int16_t nextX = enemies[r][c].x + dx;
+				int16_t nextY = enemies[r][c].y + dy;
+
+				// Kiểm tra biên màn hình (0 - 240 và 0 - 320)
+				// Cộng 32 vì đó là kích thước ảnh (imgSize)
+				if (nextX < 0 || nextX + 32 > SCREEN_WIDTH)
+					return false;
+				if (nextY < 0 || nextY + 32 > SCREEN_HEIGHT)
+					return false;
+			}
+		}
+	}
+	return true;
 }
