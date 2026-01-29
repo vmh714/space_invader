@@ -21,15 +21,15 @@ Hệ thống tận dụng tối đa các ngoại vi (Peripherals) để giảm t
 
 Các nút nhấn điều khiển được cấu hình ở chế độ Ngắt ngoài (EXTI) để đảm bảo độ nhạy cao nhất, không bị trễ do polling.
 
-| **Thành phần**   | **Chức năng**      | **Chân GPIO**            | **Chế độ (Mode)**   | **Ghi chú**      |
-| ---------------- | ------------------ | ------------------------ | ------------------- | ---------------- |
-| **Button UP**    | Di chuyển Lên      | `PC12`                   | EXTI (Falling Edge) | Internal Pull-up |
-| **Button DOWN**  | Di chuyển Xuống    | `PC10`                   | EXTI (Falling Edge) | Internal Pull-up |
-| **Button LEFT**  | Di chuyển Trái     | `PA15`                   | EXTI (Falling Edge) | Internal Pull-up |
-| **Button RIGHT** | Di chuyển Phải     | `PC11`                   | EXTI (Falling Edge) | Internal Pull-up |
-| **Buzzer**       | Âm thanh           | `PB4`                    | TIM3_CH1 (AF2)      | PWM Output       |
-| **UART Log**     | Debug Console      | `PA9` (TX) / `PA10` (RX) | Alternate Function  | Baudrate 115200  |
-| **LCD Control**  | Giao tiếp màn hình | `SPI5` pins              | Alternate Function  | ILI9341 Driver   |
+| **Thành phần**   | **Chức năng**      | **Chân GPIO**                      | **Chế độ (Mode)**   | **Ghi chú**      |
+| ---------------- | ------------------ | ---------------------------------- | ------------------- | ---------------- |
+| **Button UP**    | Di chuyển Lên      | `PC12`                             | EXTI (Falling Edge) | Internal Pull-up |
+| **Button DOWN**  | Di chuyển Xuống    | `PC10`                             | EXTI (Falling Edge) | Internal Pull-up |
+| **Button LEFT**  | Di chuyển Trái     | `PA15`                             | EXTI (Falling Edge) | Internal Pull-up |
+| **Button RIGHT** | Di chuyển Phải     | `PC11`                             | EXTI (Falling Edge) | Internal Pull-up |
+| **Buzzer**       | Âm thanh           | `PB4`                              | TIM3_CH1 (AF2)      | PWM Output       |
+| **UART Log**     | Debug Console      | `USART1`: `PA9` (TX) / `PA10` (RX) | Alternate Function  | Baudrate 115200  |
+| **LCD Control**  | Giao tiếp màn hình | `SPI5` pins                        | Alternate Function  | ILI9341 Driver   |
 
 ### 2.2. Hệ thống Ngắt & Input (Interrupts)
 
@@ -174,25 +174,41 @@ sequenceDiagram
     participant SoundTask
     participant Flash
 
-    Note over User, Flash: Kịch bản: Bắn trúng và Game Over
-    User->>HW_Button: Nhấn nút bắn
+    Note over User, Flash: Kịch bản: Di chuyển, Tự động bắn và Xử lý va chạm
+
+    %% 1. Luồng Di chuyển (Input Flow)
+    User->>HW_Button: Nhấn nút (Ví dụ: RIGHT)
     HW_Button->>ButtonTask: Queue Put (Pin ID)
-    ButtonTask->>GUI_Task: Queue Put ('F') (Fire)
-    
+    ButtonTask->>GUI_Task: Queue Put ('R')
+    GUI_Task->>GUI_Task: Model::tick() -> Move Player
+
+    %% 2. Vòng lặp Game (Game Loop) - Auto Fire & Physics
     loop Game Loop (60Hz)
-        GUI_Task->>GUI_Task: Update Bullet Pos
+        Note right of GUI_Task: Tự động bắn (Timer)
+        GUI_Task->>GUI_Task: Spawn Bullet (Auto)
+        
+        GUI_Task->>GUI_Task: Update Pos (Bullets, Enemies)
+        
+        %% Xử lý va chạm (Collision)
         GUI_Task->>GUI_Task: Check Collision (AABB)
-        GUI_Task->>SoundTask: Queue Put ('W')
-        SoundTask-->>SoundTask: PWM Beep (3kHz)
+        
+        opt Bullet hits Enemy
+            GUI_Task->>SoundTask: Queue Put ('W')
+            SoundTask-->>SoundTask: PWM Beep (3kHz)
+        end
     end
 
-    GUI_Task->>GUI_Task: Player Hit!
+    %% 3. Luồng Game Over (Game Over Flow)
+    GUI_Task->>GUI_Task: Player Hit (Collision)
     GUI_Task->>SoundTask: Queue Put ('L')
     SoundTask-->>SoundTask: PWM Beep (1kHz)
     
+    GUI_Task->>GUI_Task: Transition to Game Over
     GUI_Task->>Flash: Read HighScore (Sec 23)
-    alt New Record
-        GUI_Task->>Flash: Erase & Write Flash
+    
+    alt Score > HighScore
+        GUI_Task->>Flash: Erase & Write New Score
     end
-    GUI_Task->>User: Show Game Over Screen
+    
+    GUI_Task->>User: Display Game Over & High Score
 ```
