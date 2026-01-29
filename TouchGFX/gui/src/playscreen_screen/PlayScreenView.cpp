@@ -1,24 +1,28 @@
 #include <gui/playscreen_screen/PlayScreenView.hpp>
 #include <BitmapDatabase.hpp>
+#include <cmsis_os2.h>
 
 #define BITMAP_BULLET_ID BITMAP_PLAYER_BULLET_ID
 #define ANIM_EXPLOSION_START  BITMAP_EXPLOSION_01_ID
 #define ANIM_EXPLOSION_END    BITMAP_EXPLOSION_02_ID
 #define BITMAP_MONSTER_BULLET_ID BITMAP_MONSTER_BULLET_ID
+extern osMessageQueueId_t buzzerQueueHandle;
 
-PlayScreenView::PlayScreenView() :
-		lastShotColumn(0), fireTimer(0), // Khởi tạo timer
-		explosionEndedCallback(this, &PlayScreenView::explosionEndedHandler), currentEnemyFireRate(
-				100), // Tốc độ bắn mặc định
-		currentScore(0), currentLevel(1), moveDir(MOVE_IDLE), moveTimer(0), moveStepCounter(
-				0)
+PlayScreenView::PlayScreenView()
+    : currentEnemyFireRate(100),
+      currentLevel(1),
+      moveDir(MOVE_IDLE),
+      moveTimer(0),
+      moveStepCounter(0),
+      lastShotColumn(0),
+      fireTimer(0),
+      enemyFireTimer(0),
+      explosionEndedCallback(this, &PlayScreenView::explosionEndedHandler),
+      respawnTimer(0),
+      currentScore(0)
+
 
 {
-	currentLevel = 1;
-	currentEnemyFireRate = 100;
-	moveDir = MOVE_IDLE;
-	moveTimer = 0;
-	moveStepCounter = 0;
 	// Khởi tạo trạng thái đạn
 	for (uint8_t i = 0; i < MAX_BULLETS; ++i)
 	{
@@ -29,8 +33,6 @@ PlayScreenView::PlayScreenView() :
 void PlayScreenView::setupScreen()
 {
 	PlayScreenViewBase::setupScreen();
-
-
 
 	for (uint8_t r = 0; r < ROWS; r++)
 	{
@@ -277,6 +279,10 @@ void PlayScreenView::checkCollisions()
 					currentScore += SCORE_PER_ENEMY;
 					// Cập nhật lên màn hình
 					updateScoreDisplay();
+					//GỬI TÍN HIỆU ÂM THANH 'W' (WIN/HIT)
+					uint8_t msg = 'W';
+					// priority 0, timeout 0 (để không bao giờ block game nếu queue đầy)
+					osMessageQueuePut(buzzerQueueHandle, &msg, 0, 0);
 					// Break loop enemy (Một viên đạn chỉ trúng 1 enemy tại 1 thời điểm)
 					goto next_bullet;
 				}
@@ -403,7 +409,10 @@ void PlayScreenView::checkPlayerHit()
 			enemyBulletStates[i].isActive = false;
 			enemyBulletImages[i].setVisible(false);
 			enemyBulletImages[i].invalidate();
-
+			//GỬI TÍN HIỆU ÂM THANH 'L' (LOSE)
+			uint8_t msg = 'L';
+			osMessageQueuePut(buzzerQueueHandle, &msg, 0, 0);
+			// ----------------------------------------------
 			// Chuyển sang GameOver thông qua Action đã fix
 			presenter->goToGameOverScreen();
 			return;
