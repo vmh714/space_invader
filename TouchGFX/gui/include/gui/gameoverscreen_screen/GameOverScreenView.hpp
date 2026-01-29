@@ -13,6 +13,7 @@ public:
     virtual void tearDownScreen();
 
     void displayScore(uint32_t score);
+    void displayHighScore(uint32_t score);
 protected:
 };
 
